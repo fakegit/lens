@@ -1,19 +1,41 @@
+/**
+ * Copyright (c) 2021 OpenLens Authors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 import "./cluster-issues.scss";
 
 import React from "react";
-import { observer } from "mobx-react";
-import { computed } from "mobx";
+import { disposeOnUnmount, observer } from "mobx-react";
+import { computed, makeObservable } from "mobx";
 import { Icon } from "../icon";
 import { SubHeader } from "../layout/sub-header";
 import { Table, TableCell, TableHead, TableRow } from "../table";
 import { nodesStore } from "../+nodes/nodes.store";
 import { eventStore } from "../+events/event.store";
-import { autobind, cssNames, prevDefault } from "../../utils";
-import { ItemObject } from "../../item.store";
+import { boundMethod, cssNames, prevDefault } from "../../utils";
+import type { ItemObject } from "../../item.store";
 import { Spinner } from "../spinner";
 import { ThemeStore } from "../../theme.store";
 import { lookupApiLink } from "../../api/kube-api";
 import { kubeSelectedUrlParam, showDetails } from "../kube-object";
+import { kubeWatchApi } from "../../api/kube-watch-api";
 
 interface Props {
   className?: string;
@@ -40,6 +62,15 @@ export class ClusterIssues extends React.Component<Props> {
     [sortBy.object]: (warning: IWarning) => warning.getName(),
     [sortBy.age]: (warning: IWarning) => warning.timeDiffFromNow,
   };
+
+  constructor(props: Props) {
+    super(props);
+    makeObservable(this);
+
+    disposeOnUnmount(this, [
+      kubeWatchApi.subscribeStores([eventStore, nodesStore])
+    ]);
+  }
 
   @computed get warnings() {
     const warnings: IWarning[] = [];
@@ -82,7 +113,7 @@ export class ClusterIssues extends React.Component<Props> {
     return warnings;
   }
 
-  @autobind()
+  @boundMethod
   getTableRow(uid: string) {
     const { warnings } = this;
     const warning = warnings.find(warn => warn.getId() == uid);
